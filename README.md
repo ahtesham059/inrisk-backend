@@ -32,7 +32,7 @@ Date ranges contain at most 31 calendar dates, inclusive. Daily values use the l
 
 1. Create a project and a private bucket named `weather-data`.
 2. Copy `.env.example` to `.env`.
-3. Set `STORAGE_BACKEND=supabase`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY`.
+3. Set `STORAGE_BACKEND=supabase`, `SUPABASE_URL`, and `SUPABASE_SECRET_KEY`.
 4. Never expose the service-role key to the frontend or commit `.env`.
 
 The storage layer is isolated behind a small interface so an approved S3/GCS adapter can replace Supabase without changing the routes.
@@ -51,7 +51,7 @@ Import this repository as a Vercel project and add:
 - `APP_ENVIRONMENT=production`
 - `STORAGE_BACKEND=supabase`
 - `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_SECRET_KEY`
 - `SUPABASE_BUCKET=weather-data`
 - `CORS_ORIGINS=https://your-frontend.vercel.app`
 

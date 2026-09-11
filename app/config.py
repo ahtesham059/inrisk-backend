@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     storage_backend: str = "local"
     local_storage_path: Path = Path(".data/weather")
     supabase_url: str | None = None
+    supabase_secret_key: str | None = None
     supabase_service_role_key: str | None = None
     supabase_bucket: str = "weather-data"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
@@ -21,6 +22,10 @@ class Settings(BaseSettings):
     @property
     def allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def supabase_server_key(self) -> str | None:
+        return self.supabase_secret_key or self.supabase_service_role_key
 
 
 @lru_cache

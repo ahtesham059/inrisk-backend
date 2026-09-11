@@ -11,13 +11,11 @@ from app.storage.supabase import SupabaseWeatherStorage
 def _build_weather_service() -> WeatherService:
     settings = get_settings()
     if settings.storage_backend == "supabase":
-        if not settings.supabase_url or not settings.supabase_service_role_key:
-            raise RuntimeError(
-                "Supabase storage requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
-            )
+        if not settings.supabase_url or not settings.supabase_server_key:
+            raise RuntimeError("Supabase storage requires SUPABASE_URL and SUPABASE_SECRET_KEY")
         storage = SupabaseWeatherStorage(
             settings.supabase_url,
-            settings.supabase_service_role_key,
+            settings.supabase_server_key,
             settings.supabase_bucket,
             settings.request_timeout_seconds,
         )
