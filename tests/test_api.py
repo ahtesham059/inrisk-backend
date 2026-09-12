@@ -62,6 +62,12 @@ class FakeStorage:
         except KeyError as exc:
             raise StoredFileNotFoundError from exc
 
+    async def delete(self, name: str) -> None:
+        try:
+            del self.objects[name]
+        except KeyError as exc:
+            raise StoredFileNotFoundError from exc
+
 
 @pytest.fixture
 def storage() -> FakeStorage:
@@ -133,6 +139,26 @@ async def test_missing_or_invalid_file_uses_exact_404(client: AsyncClient):
         assert response.json() == {"status": "error", "message": "not found"}
 
 
+async def test_deletes_stored_file(client: AsyncClient, storage: FakeStorage):
+    stored = await client.post("/store-weather-data", json=payload())
+    name = stored.json()["file"]
+
+    deleted = await client.delete(f"/weather-file-content/{name}")
+
+    assert deleted.status_code == 200
+    assert deleted.json() == {"status": "ok", "file": name}
+    assert name not in storage.objects
+    missing = await client.get(f"/weather-file-content/{name}")
+    assert missing.status_code == 404
+
+
+async def test_delete_missing_or_invalid_file_uses_exact_404(client: AsyncClient):
+    for name in ("bad.json", "weather_1_2_2025-01-01_2025-01-01_20250101T000000000000Z.json"):
+        response = await client.delete(f"/weather-file-content/{name}")
+        assert response.status_code == 404
+        assert response.json() == {"status": "error", "message": "not found"}
+
+
 async def test_upstream_failure_does_not_upload(storage: FakeStorage):
     async def service_override():
         return WeatherService(FailingClient(), storage)
@@ -164,7 +190,9 @@ async def test_weather_endpoints_require_auth(storage: FakeStorage):
     app.dependency_overrides[get_weather_service] = service_override
     app.dependency_overrides[get_runtime_settings] = settings_override
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/list-weather-files")
+        response = await client.delete(
+            "/weather-file-content/weather_1_2_2025-01-01_2025-01-01_20250101T000000000000Z.json"
+        )
     app.dependency_overrides.clear()
     assert response.status_code == 401
     assert response.json() == {"status": "error", "message": "authentication required"}

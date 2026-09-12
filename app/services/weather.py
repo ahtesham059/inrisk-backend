@@ -55,3 +55,11 @@ class WeatherService:
         if not isinstance(payload, dict):
             raise StoredFileInvalidError
         return payload
+
+    async def delete_file(self, name: str) -> None:
+        if not FILE_PATTERN.fullmatch(name):
+            raise StoredFileNotFoundError
+        # Supabase's batch removal endpoint succeeds for missing objects, so check
+        # existence first to preserve the API's exact 404 behavior.
+        await self.storage.download(name)
+        await self.storage.delete(name)

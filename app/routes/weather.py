@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 
 from app.auth import require_auth
 from app.dependencies import get_weather_service
-from app.schemas import StoredFileList, StoreWeatherResponse, WeatherRequest
+from app.schemas import DeleteWeatherResponse, StoredFileList, StoreWeatherResponse, WeatherRequest
 from app.services.weather import WeatherService
 
 router = APIRouter(tags=["weather"])
@@ -34,3 +34,15 @@ async def weather_file_content(
     file_name: str, service: WeatherService = Depends(get_weather_service)
 ) -> dict[str, Any]:
     return await service.get_file(file_name)
+
+
+@router.delete(
+    "/weather-file-content/{file_name}",
+    response_model=DeleteWeatherResponse,
+    dependencies=[Depends(require_auth)],
+)
+async def delete_weather_file(
+    file_name: str, service: WeatherService = Depends(get_weather_service)
+) -> DeleteWeatherResponse:
+    await service.delete_file(file_name)
+    return DeleteWeatherResponse(file=file_name)

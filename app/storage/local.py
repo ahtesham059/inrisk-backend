@@ -52,3 +52,11 @@ class LocalWeatherStorage:
             raise StoredFileNotFoundError from exc
         except OSError as exc:
             raise StorageUnavailableError("local storage is unavailable") from exc
+
+    async def delete(self, name: str) -> None:
+        try:
+            await asyncio.to_thread((self.root / name).unlink)
+        except FileNotFoundError as exc:
+            raise StoredFileNotFoundError from exc
+        except OSError as exc:
+            raise StorageUnavailableError("local storage is unavailable") from exc

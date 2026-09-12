@@ -63,6 +63,11 @@ class StoreWeatherResponse(BaseModel):
     file: str
 
 
+class DeleteWeatherResponse(BaseModel):
+    status: str = "ok"
+    file: str
+
+
 class ErrorResponse(BaseModel):
     status: str = "error"
     message: str

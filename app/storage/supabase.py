@@ -66,7 +66,13 @@ class SupabaseWeatherStorage:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(url, headers=self.headers)
-            if response.status_code == 404:
+            provider_status = None
+            if response.status_code == 400:
+                try:
+                    provider_status = str(response.json().get("statusCode"))
+                except (ValueError, AttributeError):
+                    pass
+            if response.status_code == 404 or provider_status == "404":
                 raise StoredFileNotFoundError
             response.raise_for_status()
             return response.content
@@ -74,3 +80,17 @@ class SupabaseWeatherStorage:
             raise
         except httpx.HTTPError as exc:
             raise StorageUnavailableError("cloud storage download failed") from exc
+
+    async def delete(self, name: str) -> None:
+        url = f"{self.base_url}/storage/v1/object/{quote(self.bucket, safe='')}"
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.request(
+                    "DELETE",
+                    url,
+                    headers={**self.headers, "Content-Type": "application/json"},
+                    json={"prefixes": [name]},
+                )
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise StorageUnavailableError("cloud storage deletion failed") from exc

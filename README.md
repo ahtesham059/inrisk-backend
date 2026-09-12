@@ -25,6 +25,7 @@ Local development defaults to `.data/weather`. Production refuses to start with 
 - `POST /store-weather-data`
 - `GET /list-weather-files`
 - `GET /weather-file-content/{file}`
+- `DELETE /weather-file-content/{file}`
 - `GET /health`
 - Interactive documentation: `/docs`
 
