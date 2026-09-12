@@ -4,8 +4,10 @@ from datetime import date
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.auth import require_auth
+from app.config import Settings, get_runtime_settings
 from app.dependencies import get_weather_service
-from app.errors import StoredFileNotFoundError, UpstreamWeatherError
+from app.errors import StorageLimitError, StoredFileNotFoundError, UpstreamWeatherError
 from app.main import app
 from app.schemas import WeatherRequest
 from app.services.weather import WeatherService
@@ -71,7 +73,11 @@ async def client(storage: FakeStorage):
     async def service_override():
         return WeatherService(FakeClient(), storage)
 
+    async def auth_override():
+        return "reviewer"
+
     app.dependency_overrides[get_weather_service] = service_override
+    app.dependency_overrides[require_auth] = auth_override
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as test_client:
         yield test_client
     app.dependency_overrides.clear()
@@ -131,12 +137,37 @@ async def test_upstream_failure_does_not_upload(storage: FakeStorage):
     async def service_override():
         return WeatherService(FailingClient(), storage)
 
+    async def auth_override():
+        return "reviewer"
+
     app.dependency_overrides[get_weather_service] = service_override
+    app.dependency_overrides[require_auth] = auth_override
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post("/store-weather-data", json=payload())
     app.dependency_overrides.clear()
     assert response.status_code == 502
     assert storage.objects == {}
+
+
+async def test_weather_endpoints_require_auth(storage: FakeStorage):
+    async def service_override():
+        return WeatherService(FakeClient(), storage)
+
+    async def settings_override():
+        return Settings(
+            _env_file=None,
+            auth_username="reviewer",
+            auth_password_hash="configured-for-this-test",
+            auth_token_secret="a-long-signing-secret-for-tests-only",
+        )
+
+    app.dependency_overrides[get_weather_service] = service_override
+    app.dependency_overrides[get_runtime_settings] = settings_override
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/list-weather-files")
+    app.dependency_overrides.clear()
+    assert response.status_code == 401
+    assert response.json() == {"status": "error", "message": "authentication required"}
 
 
 def test_same_day_is_valid():
@@ -147,3 +178,16 @@ def test_same_day_is_valid():
         end_date=date(2025, 1, 1),
     )
     assert request.start_date == request.end_date
+
+
+async def test_storage_cap_prevents_weather_fetch(storage: FakeStorage):
+    storage.objects["existing.json"] = b"{}"
+    service = WeatherService(FakeClient(), storage, max_stored_files=1)
+    request = WeatherRequest(
+        latitude=0,
+        longitude=0,
+        start_date=date(2025, 1, 1),
+        end_date=date(2025, 1, 1),
+    )
+    with pytest.raises(StorageLimitError):
+        await service.fetch_and_store(request)

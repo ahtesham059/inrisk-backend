@@ -7,11 +7,13 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.errors import (
+    StorageLimitError,
     StorageUnavailableError,
     StoredFileInvalidError,
     StoredFileNotFoundError,
     UpstreamWeatherError,
 )
+from app.routes.auth import router as auth_router
 from app.routes.weather import router
 
 logger = logging.getLogger(__name__)
@@ -22,8 +24,9 @@ app.add_middleware(
     allow_origins=settings.allowed_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Authorization", "Content-Type"],
 )
+app.include_router(auth_router)
 app.include_router(router)
 
 
@@ -57,6 +60,11 @@ async def upstream_error(_: Request, exc: UpstreamWeatherError) -> JSONResponse:
 @app.exception_handler(StorageUnavailableError)
 async def storage_error(_: Request, exc: StorageUnavailableError) -> JSONResponse:
     return error(503, str(exc))
+
+
+@app.exception_handler(StorageLimitError)
+async def storage_limit(_: Request, exc: StorageLimitError) -> JSONResponse:
+    return error(429, str(exc))
 
 
 @app.exception_handler(StoredFileInvalidError)

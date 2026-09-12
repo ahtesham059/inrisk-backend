@@ -12,3 +12,7 @@ class StoredFileNotFoundError(Exception):
 
 class StoredFileInvalidError(Exception):
     """The stored object is not valid weather JSON."""
+
+
+class StorageLimitError(Exception):
+    """The configured object limit has been reached."""

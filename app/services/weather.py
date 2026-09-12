@@ -3,7 +3,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
-from app.errors import StoredFileInvalidError, StoredFileNotFoundError
+from app.errors import StorageLimitError, StoredFileInvalidError, StoredFileNotFoundError
 from app.schemas import WeatherRequest
 from app.services.open_meteo import OpenMeteoClient
 from app.storage.base import WeatherStorage
@@ -26,11 +26,19 @@ def make_filename(request: WeatherRequest) -> str:
 
 
 class WeatherService:
-    def __init__(self, client: OpenMeteoClient, storage: WeatherStorage):
+    def __init__(
+        self, client: OpenMeteoClient, storage: WeatherStorage, max_stored_files: int = 100
+    ):
         self.client = client
         self.storage = storage
+        self.max_stored_files = max_stored_files
 
     async def fetch_and_store(self, request: WeatherRequest) -> str:
+        if len(await self.storage.list()) >= self.max_stored_files:
+            raise StorageLimitError(
+                f"storage limit reached ({self.max_stored_files} files); "
+                "remove old files to continue"
+            )
         content = await self.client.fetch(request)
         name = make_filename(request)
         await self.storage.upload(name, content)

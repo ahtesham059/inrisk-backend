@@ -25,7 +25,9 @@ def _build_weather_service() -> WeatherService:
         raise RuntimeError("Production requires STORAGE_BACKEND=supabase")
 
     return WeatherService(
-        OpenMeteoClient(settings.open_meteo_url, settings.request_timeout_seconds), storage
+        OpenMeteoClient(settings.open_meteo_url, settings.request_timeout_seconds),
+        storage,
+        settings.max_stored_files,
     )
 
 
